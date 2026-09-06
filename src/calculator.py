@@ -40,3 +40,10 @@ def factorial(n: int) -> int:
     for i in range(2, n + 1):
         result *= i
     return result
+
+
+def power(base: float, exponent: int) -> float:
+    """计算 base 的 exponent 次幂（exponent 为非负整数）。"""
+    if exponent < 0:
+        raise ValueError("negative exponent not supported")
+    return base ** exponent
