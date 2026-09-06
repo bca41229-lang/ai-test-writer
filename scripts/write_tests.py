@@ -168,18 +168,29 @@ def extract_code(text: str, cfg: dict) -> str:
     return cleaned.strip()
 
 
-def call_deepseek(source_code: str, api_key: str, cfg: dict) -> str:
+def call_deepseek(source_code: str, api_key: str, cfg: dict, import_hint: str = "") -> str:
     """调用 DeepSeek API 生成测试代码。"""
     import urllib.request
 
     system_prompt = SYSTEM_PROMPT_TEMPLATE.format(
         lang=cfg["lang"], ext=cfg["lang"].lower(), hint=cfg["hint"]
     )
+    location_note = ""
+    if import_hint:
+        location_note = (
+            f"\n\n[重要] 被测源码位于 {import_hint['source']}，生成的测试文件将写入 "
+            f"{import_hint['test']}。请使用正确的相对导入路径引用被测模块"
+            f"（如 JS/TS 的 require/import、Python 的 from ... import 等），"
+            f"确保测试能真实运行。不要假设被测文件与测试文件在同一目录。"
+        )
+    user_msg = (
+        f"源码文件内容如下：\n\n```\n{source_code}\n```{location_note}"
+    )
     payload = {
         "model": MODEL,
         "messages": [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"源码文件内容如下：\n\n```\n{source_code}\n```"},
+            {"role": "user", "content": user_msg},
         ],
         "temperature": 0.2,
         "max_tokens": 4096,
@@ -237,7 +248,11 @@ def main() -> int:
         )
 
     print(f"[ai-test-writer] 正在让 {MODEL} 分析 {source_path} ({cfg['lang']}) ...")
-    reply = call_deepseek(source_code, api_key, cfg)
+    import_hint = {
+        "source": str(source_path),
+        "test": str(test_path),
+    }
+    reply = call_deepseek(source_code, api_key, cfg, import_hint=import_hint)
     generated = extract_code(reply, cfg)
 
     test_path.parent.mkdir(parents=True, exist_ok=True)
