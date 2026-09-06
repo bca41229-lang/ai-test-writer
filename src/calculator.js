@@ -29,4 +29,9 @@ function factorial(n) {
   return result;
 }
 
-module.exports = { add, subtract, multiply, divide, isEven, factorial };
+function power(base, exponent) {
+  if (exponent < 0) throw new Error("negative exponent not supported");
+  return Math.pow(base, exponent);
+}
+
+module.exports = { add, subtract, multiply, divide, isEven, factorial, power };
