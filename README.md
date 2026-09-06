@@ -64,6 +64,88 @@
 修改 `src/calculator.py`（加个函数或改逻辑）→ commit → push → 打开仓库 Actions 页
 观察工作流运行，完成后 `tests/` 下会出现 AI 生成的 `test_calculator.py`。
 
+## 📖 日常使用手册（无需 AI 协助，自助操作）
+
+> 核心一句话：**把代码放进 `src/` → push 到 GitHub → 机器人自动干活**。
+
+### 日常使用流程（每次就 4 步）
+
+**① 打开项目文件夹**
+
+```powershell
+cd "D:\新建文件夹 (2)\Desktop\deepseek harness\ai-test-writer"
+```
+
+**② 把你的代码放进 `src/` 文件夹**
+
+支持：`.py` `.js` `.ts` `.java` `.go` `.rs` `.c` `.cpp`
+
+> ⚠️ **重要**：机器人只分析 `src/` 下**新增或改过**的文件。代码在别处的话，复制进 `src/` 即可。
+
+**③ 提交推送（Git 三连）**
+
+```powershell
+git add .
+git commit -m "添加了我的 XX 功能"
+git push
+```
+
+**④ 等约 1 分钟，看结果**
+
+打开浏览器 → `https://github.com/bca41229-lang/ai-test-writer/actions`
+- 绿色 ✓ = 机器人成功生成测试并提交
+- 红色 ✗ = 失败了，点进运行记录看日志（多为 API 偶发错误，重试一次即可）
+- 点进具体运行记录可查看每个步骤日志
+
+### 查看机器人生成的测试
+
+**网页方式**：打开 `https://github.com/bca41229-lang/ai-test-writer/tree/main/tests`
+
+**本地方式**：push 后执行 `git pull`，测试会出现在本地 `tests/` 文件夹：
+
+```powershell
+git pull
+dir tests     # Windows 查看目录
+```
+
+### 运行测试，确认代码正确
+
+```powershell
+# Python 测试
+python -m pytest tests -v
+
+# JavaScript 测试
+npx jest tests
+```
+
+- **全绿 ✅** = 你的代码行为符合预期
+- **有红 ❌** = 测试帮你发现了潜在 Bug（看报错信息定位并修复）
+
+### 你的日常工作循环
+
+```
+写/改代码 → git add . → git commit → git push
+    ↑                                    ↓
+发现问题、修复                   机器人自动写测试
+    ↑                                    ↓
+跑测试看红绿 ←—————— 拉取测试 (git pull)
+```
+
+### 常见问题自查
+
+| 现象 | 原因与解决 |
+|---|---|
+| push 后 Actions 没跑 | 只改了 `src/` 之外的文件（如 README）→ 机器人不触发，属正常 |
+| Actions 红色失败 | 看日志；多为 API 偶发错误，重新 push 一次即可 |
+| 想测新代码但旧测试还在 | 正常，机器人只**新增/更新变更文件的测试** |
+| 忘了改过什么 | 运行 `git status` 查看 |
+
+### 小贴士
+
+- 示例代码（`calculator.py` / `calculator.js`）随时可以删掉，换成你自己的
+- 机器人生成的测试**仅供参考**，AI 偶尔会写错，重要项目请人工 review
+- 本地跑测试前确认工具已装：Python 需 `pip install pytest`，JS 需 `npm install jest`
+
 ## 🧪 本地运行
 
 ```bash
