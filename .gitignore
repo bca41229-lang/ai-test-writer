@@ -1,0 +1,21 @@
+# ---- 项目级 .gitignore ----
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+
+# 环境与密钥（绝不提交）
+.env
+*.local
+
+# DSH 技能/配置目录（保留在工作区但不上传 GitHub）
+.dsh/
+
+# 编辑器 / 系统
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

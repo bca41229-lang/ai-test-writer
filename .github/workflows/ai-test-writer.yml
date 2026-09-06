@@ -1,0 +1,85 @@
+name: AI Test Writer
+
+# 只在 main 分支的 src/ 有变更时触发
+on:
+  push:
+    branches: [main]
+    paths: ["src/**"]
+  pull_request:
+    paths: ["src/**"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ai-test-writer-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  write-tests:
+    # 机器人自己的提交带 [skip ci] 标记 -> 跳过，防止无限循环
+    if: ${{ !contains(github.event.head_commit.message, '[skip ci]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # 需要拿到提交权限来写回测试文件
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install deps
+        run: |
+          pip install --upgrade pip
+          pip install pytest
+
+      - name: Find changed Python files
+        id: changed
+        run: |
+          # 相对 main 的变更文件
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            BASE="${{ github.event.pull_request.base.sha }}"
+          else
+            BASE="HEAD~1"
+          fi
+          CHANGED=$(git diff --name-only "$BASE" HEAD -- 'src/**/*.py' 'src/*.py' || true)
+          echo "changed files: ${CHANGED:-<none>}"
+          echo "changed=$CHANGED" >> "$GITHUB_OUTPUT"
+
+      - name: Generate tests with DeepSeek
+        if: steps.changed.outputs.changed != ''
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          DEEPSEEK_MODEL: ${{ secrets.DEEPSEEK_MODEL }}
+        run: |
+          for f in ${{ steps.changed.outputs.changed }}; do
+            echo "=== generating tests for $f ==="
+            python scripts/write_tests.py --source "$f"
+          done
+
+      - name: Run generated tests
+        if: steps.changed.outputs.changed != ''
+        run: |
+          # 让 pytest 能 import 到 src 包
+          pip install -e . 2>/dev/null || true
+          python -m pytest tests -v --tb=short || true
+          # 说明：|| true 防止 AI 测试不通过时 CI 红掉；
+          # 改为真实把关时请去掉 || true，让失败的测试作为评审输入
+
+      - name: Commit and push generated tests
+        if: steps.changed.outputs.changed != ''
+        run: |
+          git config user.name "ai-test-writer[bot]"
+          git config user.email "ai-test-writer[bot]@users.noreply.github.com"
+          git add tests/
+          if git diff --cached --quiet; then
+            echo "No new tests to commit"
+          else
+            git commit -m "🤖 AI 自动生成单元测试 [skip ci]"
+            git push origin "${{ github.head_ref || github.ref_name }}"
+          fi

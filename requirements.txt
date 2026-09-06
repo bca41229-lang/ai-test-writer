@@ -1,0 +1,5 @@
+# AI 测试生成器运行环境依赖
+pytest>=8.0
+
+# 如使用 OpenAI SDK 方式调用（本仓库用标准库 urllib，无需安装）
+# openai>=1.0
