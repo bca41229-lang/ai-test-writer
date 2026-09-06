@@ -47,3 +47,5 @@ def power(base: float, exponent: int) -> float:
     if exponent < 0:
         raise ValueError("negative exponent not supported")
     return base ** exponent
+
+# v0.1.1: 触发 AI 测试机器人（修复 DEEPSEEK_MODEL 回退）
