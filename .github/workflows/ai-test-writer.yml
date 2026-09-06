@@ -1,12 +1,32 @@
 name: AI Test Writer
 
-# 只在 main 分支的 src/ 有变更时触发
+# 多语言触发：src/ 下任一受支持语言的源码变更都会触发
 on:
   push:
     branches: [main]
-    paths: ["src/**"]
+    paths:
+      - "src/**/*.py"
+      - "src/**/*.js"
+      - "src/**/*.ts"
+      - "src/**/*.java"
+      - "src/**/*.go"
+      - "src/**/*.rs"
+      - "src/**/*.c"
+      - "src/**/*.cpp"
+      - "src/**/*.hpp"
+      - "!src/**/*.test.*"
   pull_request:
-    paths: ["src/**"]
+    paths:
+      - "src/**/*.py"
+      - "src/**/*.js"
+      - "src/**/*.ts"
+      - "src/**/*.java"
+      - "src/**/*.go"
+      - "src/**/*.rs"
+      - "src/**/*.c"
+      - "src/**/*.cpp"
+      - "src/**/*.hpp"
+      - "!src/**/*.test.*"
 
 permissions:
   contents: write
@@ -24,7 +44,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          # 需要拿到提交权限来写回测试文件
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
 
@@ -33,21 +52,35 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
       - name: Install deps
         run: |
           pip install --upgrade pip
           pip install pytest
 
-      - name: Find changed Python files
+      - name: Find changed source files
         id: changed
         run: |
-          # 相对 main 的变更文件
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             BASE="${{ github.event.pull_request.base.sha }}"
           else
             BASE="HEAD~1"
           fi
-          CHANGED=$(git diff --name-only "$BASE" HEAD -- 'src/**/*.py' 'src/*.py' || true)
+          CHANGED=$(git diff --name-only "$BASE" HEAD -- \
+            'src/**/*.py' 'src/*.py' \
+            'src/**/*.js' 'src/*.js' \
+            'src/**/*.ts' 'src/*.ts' \
+            'src/**/*.java' 'src/*.java' \
+            'src/**/*.go' 'src/*.go' \
+            'src/**/*.rs' 'src/*.rs' \
+            'src/**/*.c' 'src/*.c' \
+            'src/**/*.cpp' 'src/*.cpp' \
+            'src/**/*.hpp' 'src/*.hpp' || true)
+          CHANGED=$(echo "$CHANGED" | grep -v '\.test\.' || true)
           echo "changed files: ${CHANGED:-<none>}"
           echo "changed=$CHANGED" >> "$GITHUB_OUTPUT"
 
@@ -55,7 +88,6 @@ jobs:
         if: steps.changed.outputs.changed != ''
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
-          # 若未配置 DEEPSEEK_MODEL secret，则回退到默认模型 deepseek-chat
           DEEPSEEK_MODEL: ${{ secrets.DEEPSEEK_MODEL || 'deepseek-chat' }}
         run: |
           for f in ${{ steps.changed.outputs.changed }}; do
@@ -63,14 +95,22 @@ jobs:
             python scripts/write_tests.py --source "$f"
           done
 
-      - name: Run generated tests
+      - name: Run generated tests (Python)
         if: steps.changed.outputs.changed != ''
         run: |
-          # 让 pytest 能 import 到 src 包
-          pip install -e . 2>/dev/null || true
+          # 只跑已生成的 Python 测试；失败的测试作为评审输入而非 CI 阻断
           python -m pytest tests -v --tb=short || true
-          # 说明：|| true 防止 AI 测试不通过时 CI 红掉；
-          # 改为真实把关时请去掉 || true，让失败的测试作为评审输入
+
+      - name: Run generated tests (JavaScript)
+        if: steps.changed.outputs.changed != ''
+        run: |
+          # 若生成的是 Jest 测试且有 package.json 则尝试运行
+          if ls tests/*.test.js >/dev/null 2>&1 && [ -f package.json ]; then
+            npm install --no-save jest >/dev/null 2>&1 || true
+            npx jest tests --passWithNoTests 2>&1 || true
+          else
+            echo "无 JS 测试或缺少 package.json，跳过 JS 运行"
+          fi
 
       - name: Commit and push generated tests
         if: steps.changed.outputs.changed != ''
